@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Kahoot Clone - Jugador</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+  <!-- Formulario de Login -->
+  <div id="pantalla-login" class="card">
+    <h1>¡A Jugar!</h1>
+    <input type="number" id="input-pin" placeholder="PIN del juego">
+    <input type="text" id="input-nick" placeholder="Tu Nickname / Nombre">
+    <button id="btn-unirse">Ingresar</button>
+    <p id="error-msg" style="color: red; margin-top: 10px;"></p>
+  </div>
+
+  <!-- Sala de espera (Espera al profesor) -->
+  <div id="pantalla-espera" class="card" style="display: none;">
+    <h2>¡Ya estás dentro!</h2>
+    <p>Mira la pantalla principal. El juego comenzará pronto...</p>
+    <div style="margin-top: 20px; font-size: 50px;">🎮</div>
+  </div>
+
+  <!-- Botonera de juego -->
+  <div id="pantalla-botones" style="display: none; width: 100%;">
+    <h2 style="text-align: center; margin-bottom: 20px;">¡Elige la respuesta correcta!</h2>
+    <div class="grid-respuestas">
+      <button class="btn-opcion rojo" onclick="responder(0)">▲</button>
+      <button class="btn-opcion azul" onclick="responder(1)">⬢</button>
+      <button class="btn-opcion amarillo" onclick="responder(2)">■</button>
+      <button class="btn-opcion verde" onclick="responder(3)">♥</button>
+    </div>
+  </div>
+
+  <script src="js/player.js"></script>
+</body>
+</html>

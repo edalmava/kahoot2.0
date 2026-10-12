@@ -1,0 +1,79 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background-color: #46178f; /* Morado estilo Kahoot */
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.card {
+  background: white;
+  color: #333;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  text-align: center;
+  width: 100%;
+  max-width: 500px;
+}
+
+h1, h2 { margin-bottom: 20px; }
+input {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0;
+  border: 2px solid #ccc;
+  border-radius: 6px;
+  font-size: 16px;
+}
+
+button {
+  width: 100%;
+  padding: 14px;
+  background-color: #250850;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 10px;
+}
+button:hover { background-color: #331166; }
+
+/* Contenedor de respuestas geométricas */
+.grid-respuestas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  width: 100%;
+  max-width: 800px;
+  margin-top: 20px;
+}
+
+.btn-opcion {
+  padding: 30px;
+  font-size: 22px;
+  color: white;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+.rojo { background-color: #e21b3c; }
+.azul { background-color: #1368ce; }
+.amarillo { background-color: #d89e00; }
+.verde { background-color: #26890c; }
+
+ul { list-style: none; margin-top: 15px; text-align: left; }
+li { background: #eee; padding: 10px; margin: 5px 0; border-radius: 4px; color: #333; }

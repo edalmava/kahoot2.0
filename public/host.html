@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Kahoot Clone - Host</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <!-- Cargamos la librería del cliente de Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+  <!-- Pantalla Inicial: Crear Sala -->
+  <div id="pantalla-inicio" class="card">
+    <h1>Panel del Profesor</h1>
+    <button id="btn-crear">Crear Nueva Partida</button>
+  </div>
+
+  <!-- Sala de espera (Lobby) -->
+  <div id="pantalla-lobby" class="card" style="display: none;">
+    <h2>¡Únete con este PIN!</h2>
+    <h1 id="mostrar-pin" style="font-size: 48px; color: #d89e00;">----</h1>
+    <h3>Jugadores conectados (<span id="contador">0</span>):</h3>
+    <ul id="lista-jugadores"></ul>
+    <button id="btn-comenzar" style="background-color: #26890c;">Empezar Juego</button>
+  </div>
+
+  <!-- Pantalla del Juego: Mostrar Pregunta -->
+  <div id="pantalla-juego" style="display: none; text-align: center; width: 100%;">
+    <h1 id="texto-pregunta" style="font-size: 36px; margin-bottom: 40px;">Pregunta</h1>
+    <div class="grid-respuestas">
+      <button class="btn-opcion rojo" id="opc-0">A</button>
+      <button class="btn-opcion azul" id="opc-1">B</button>
+      <button class="btn-opcion amarillo" id="opc-2">C</button>
+      <button class="btn-opcion verde" id="opc-3">D</button>
+    </div>
+    <div class="card" style="margin: 20px auto;">
+      <h3>Respuestas recibidas: <span id="respuestas-conteo">0</span></h3>
+    </div>
+  </div>
+
+  <script src="js/host.js"></script>
+</body>
+</html>
