@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { CONFIG, CLIENT_CONFIG } = require('../src/config');
 const { RequestError } = require('../src/errors');
-const { validarPartida, validarUnion, validarPregunta, validarRespuesta } = require('../src/validators');
+const { validarPartida, validarUnion, validarPregunta, validarRespuesta, validarReanudacion } = require('../src/validators');
 
 function rechaza(fn, code = 'DATOS_INVALIDOS') {
   assert.throws(fn, (error) => error instanceof RequestError && error.code === code);
@@ -22,7 +22,7 @@ test('los límites publicados coinciden con la configuración del servidor', () 
 });
 
 test('todos los validadores rechazan payloads que no sean objetos', () => {
-  for (const validate of [validarPartida, validarUnion, validarPregunta, validarRespuesta]) {
+  for (const validate of [validarPartida, validarUnion, validarPregunta, validarRespuesta, validarReanudacion]) {
     for (const payload of [undefined, null, [], '1234', 1234, true]) {
       rechaza(() => validate(payload));
     }
@@ -80,4 +80,13 @@ test('una respuesta requiere PIN, ID de pregunta y opción entera sin coerción'
   for (const respuestaSeleccionada of [undefined, null, '0', false, [], {}, 0.5, NaN, Infinity]) {
     rechaza(() => validarRespuesta({ ...payload, respuestaSeleccionada }), 'OPCION_INVALIDA');
   }
+});
+
+test('reanudar exige PIN válido y un token hexadecimal de 32 bytes sin coerciones', () => {
+  const payload = { gamePin: '1234', token: 'ab'.repeat(32) };
+  assert.deepEqual(validarReanudacion({ ...payload, playerId: 'ignorado' }), payload);
+  for (const token of [undefined, null, 123, [], {}, '', 'a'.repeat(63), 'a'.repeat(65), 'G'.repeat(64), 'A'.repeat(64)]) {
+    rechaza(() => validarReanudacion({ ...payload, token }), 'SESION_INVALIDA');
+  }
+  rechaza(() => validarReanudacion({ ...payload, gamePin: 1234 }));
 });

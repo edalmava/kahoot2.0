@@ -69,4 +69,12 @@ function validarRespuesta(payload) {
   };
 }
 
-module.exports = { validarPartida, validarUnion, validarPregunta, validarRespuesta };
+function validarReanudacion(payload) {
+  const { gamePin } = validarPartida(payload);
+  if (typeof payload.token !== 'string' || !/^[a-f0-9]{64}$/.test(payload.token)) {
+    throw new RequestError('SESION_INVALIDA', 'El token de sesión no es válido.');
+  }
+  return { gamePin, token: payload.token };
+}
+
+module.exports = { validarPartida, validarUnion, validarPregunta, validarRespuesta, validarReanudacion };

@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const { registerRequest } = require('../src/request-handler');
 const { validarPartida } = require('../src/validators');
+const { RequestError } = require('../src/errors');
 
 function preparar(handle, logger = { error() {} }) {
   const socket = new EventEmitter();
@@ -52,5 +53,17 @@ test('errores síncronos y rechazos asíncronos no exponen detalles internos', a
     }]);
     assert.equal(logs.length, 1);
     assert.equal(JSON.stringify({ respuestas, logs }).includes(detallePrivado), false);
+  }
+});
+
+test('cada código de rechazo de respuestas conserva su contrato y produce un solo acuse', async () => {
+  for (const code of [
+    'DATOS_INVALIDOS', 'PARTIDA_NO_EXISTE', 'NO_PERTENECE', 'SESION_INVALIDA',
+    'SIN_PREGUNTA_ACTIVA', 'PREGUNTA_INCORRECTA', 'PLAZO_CERRADO', 'OPCION_INVALIDA', 'YA_RESPONDIO'
+  ]) {
+    const respuestas = [];
+    const handler = preparar(() => { throw new RequestError(code, 'Solicitud rechazada.'); });
+    await handler({ gamePin: '1234' }, (response) => respuestas.push(response));
+    assert.deepEqual(respuestas, [{ ok: false, error: { code, message: 'Solicitud rechazada.' } }]);
   }
 });
