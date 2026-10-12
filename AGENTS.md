@@ -4,13 +4,24 @@
 
 Todas las respuestas al usuario deben darse en español.
 
+## Especificaciones, planes y tareas
+
+El directorio `docs/` contiene las especificaciones del proyecto, los planes para desarrollarlas y las tareas para implementarlas:
+
+- `docs/specs.md`: requisitos y comportamiento esperado.
+- `docs/plan.md`: plan de implementación y criterios de aceptación.
+- `docs/tasks.md`: tareas ordenadas y seguimiento de su ejecución.
+- `docs/protocol.md`: contratos de eventos, configuración adoptada y alcance implementado.
+
+Antes de iniciar una implementación, consultar estos documentos y mantener los cambios alineados con las especificaciones, el plan y las tareas correspondientes.
+
 ## Project Structure & Module Organization
 
-- `server.js` runs the CommonJS Express server, serves static files, and handles Socket.IO events. Active games live in the `partidasActivas` in-memory map.
+- `server.js` exports `createGameServer`, serves static files, and registers Socket.IO events; direct execution starts port 3000. `src/` contains configuration, validators, request handling, and the game service with isolated in-memory state. `test/*.test.js` contains automated tests.
 - `public/host.html` and `public/player.html` provide the teacher and student interfaces.
 - `public/js/host.js` and `public/js/player.js` handle browser interactions through the `/host` and `/player` Socket.IO namespaces.
 - `public/css/style.css` contains shared styling. Keep browser assets under `public/`.
-- `package.json` defines dependencies and scripts; `pnpm-lock.yaml` records dependency versions. No test directory currently exists.
+- `package.json` defines dependencies and scripts; `pnpm-lock.yaml` records dependency versions.
 
 ## Build, Test, and Development Commands
 
@@ -18,7 +29,7 @@ Run commands from the repository root:
 
 - `pnpm install --frozen-lockfile`: install dependencies from the committed lockfile.
 - `pnpm start`: run `node server.js` on port 3000. Open `http://localhost:3000/host-panel` and `http://localhost:3000/play`.
-- `pnpm test`: currently exits with an error because the test script is a placeholder.
+- `pnpm test`: run the Node.js test runner for validators, handlers, game service, routes, and Socket.IO events.
 - `node --check server.js`: check server JavaScript syntax; use the same command for each browser script you change.
 
 There is no build pipeline or automatic reload; restart the server after server-side edits.
@@ -29,8 +40,8 @@ Use two-space indentation, semicolons, and `const` unless reassignment requires 
 
 ## Testing Guidelines
 
-No automated testing framework or coverage threshold is configured. Before submitting changes, create a game in the host page, join from a separate player tab, start the question, and confirm a submitted answer increments the host counter and disables player buttons. Also verify that an unknown PIN displays an error. Check browser and server consoles for failures.
+Use `node:test` and `node:assert/strict`; name tests `test/*.test.js`. Integration tests currently load the bundled Socket.IO browser client with native WebSocket in Node.js 24. Run `pnpm test`; no coverage threshold is configured. Before submitting changes, verify host/player joining, question delivery, answer counts, disabled buttons, and unknown-PIN errors. Check browser and server consoles for failures.
 
 ## Commit & Pull Request Guidelines
 
-This checkout has no Git metadata, so existing commit conventions cannot be verified. Use short, imperative commit subjects, such as `Fix player answer submission`. Keep changes focused. PRs should explain behavior changes, list verification performed, link related issues when available, and include screenshots for visible UI changes.
+Git history uses a `feat:` prefix. Use concise, imperative subjects, such as `fix: Validate player answer payloads`. Keep changes focused. PRs should explain behavior changes, list verification performed, link related issues when available, and include screenshots for visible UI changes.

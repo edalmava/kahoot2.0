@@ -1,60 +1,85 @@
-// Nos conectamos ESTRICTAMENTE al namespace '/player'
-const socket = io("/player"); 
+const socket = io('/player');
 
-let miPinActual = "";
+let configuracion = null;
+let miPinActual = '';
+let preguntaIdActual = '';
+let enviandoRespuesta = false;
 
-const pLogin = document.getElementById("pantalla-login");
-const pEspera = document.getElementById("pantalla-espera");
-const pBotones = document.getElementById("pantalla-botones");
+const pLogin = document.getElementById('pantalla-login');
+const pEspera = document.getElementById('pantalla-espera');
+const pBotones = document.getElementById('pantalla-botones');
+const btnUnirse = document.getElementById('btn-unirse');
+const errorMsg = document.getElementById('error-msg');
+btnUnirse.disabled = true;
 
-// Intentar unirse al juego
-document.getElementById("btn-unirse").addEventListener("click", () => {
-  const pin = document.getElementById("input-pin").value;
-  const nick = document.getElementById("input-nick").value;
-
-  if(!pin || !nick) return alert("Llena todos los campos");
-
-  miPinActual = pin;
-  socket.emit("unirse_a_partida", { gamePin: pin, nickname: nick });
+socket.on('configuracion', (data) => {
+  configuracion = data;
+  btnUnirse.disabled = false;
 });
 
-// Servidor aprueba el ingreso
-socket.on("union_exitosa", (data) => {
-  pLogin.style.display = "none";
-  pEspera.style.display = "block";
+async function solicitar(evento, payload) {
+  if (!configuracion || !socket.connected) {
+    throw new Error('Espera a que se establezca la conexión con el servidor.');
+  }
+  let response;
+  try {
+    response = await socket.timeout(configuracion.ackTimeoutMs).emitWithAck(evento, payload);
+  } catch {
+    throw new Error('No se recibió confirmación del servidor. Verifica el estado de la partida.');
+  }
+  if (!response.ok) throw new Error(response.error.message);
+  return response.data;
+}
+
+btnUnirse.addEventListener('click', async () => {
+  const gamePin = document.getElementById('input-pin').value;
+  const nickname = document.getElementById('input-nick').value;
+  errorMsg.innerText = '';
+  btnUnirse.disabled = true;
+  try {
+    const data = await solicitar('unirse_a_partida', { gamePin, nickname });
+    miPinActual = data.pin;
+    pLogin.style.display = 'none';
+    pEspera.style.display = 'block';
+  } catch (error) {
+    errorMsg.innerText = error.message;
+  } finally {
+    btnUnirse.disabled = false;
+  }
 });
 
-// Servidor rechaza el ingreso (PIN incorrecto)
-socket.on("error_union", (mensaje) => {
-  document.getElementById("error-msg").innerText = mensaje;
+socket.on('juego_iniciado', () => {
+  pEspera.style.display = 'none';
 });
 
-// El host da inicio al juego
-socket.on("juego_iniciado", () => {
-  pEspera.style.display = "none";
-  // Aquí podríamos mostrar una pantalla de carga corta
+socket.on('recibir_pregunta', (pregunta) => {
+  preguntaIdActual = pregunta.preguntaId;
+  enviandoRespuesta = false;
+  pEspera.style.display = 'none';
+  pBotones.style.display = 'block';
+  document.querySelectorAll('.btn-opcion').forEach((boton) => {
+    boton.disabled = false;
+  });
 });
 
-// Llega una pregunta: activamos los botones de respuestas de colores
-socket.on("recibir_pregunta", (pregunta) => {
-  pEspera.style.display = "none";
-  pBotones.style.display = "block";
-  
-  // Habilitamos todos los botones por si estaban bloqueados de la pregunta anterior
-  const botones = document.querySelectorAll(".btn-opcion");
-  botones.forEach(b => b.disabled = false);
-});
-
-// Función cuando el usuario hace clic en una figura/color
-function responder(indiceOpcion) {
-  socket.emit("enviar_respuesta", { 
-    gamePin: miPinActual, 
-    respuestaSeleccionada: indiceOpcion 
+async function responder(indiceOpcion) {
+  if (enviandoRespuesta || !preguntaIdActual) return;
+  const preguntaId = preguntaIdActual;
+  enviandoRespuesta = true;
+  document.querySelectorAll('.btn-opcion').forEach((boton) => {
+    boton.disabled = true;
   });
 
-  // Bloqueamos la botonera para que no pueda cambiar de respuesta
-  const botones = document.querySelectorAll(".btn-opcion");
-  botones.forEach(b => b.disabled = true);
-  
-  alert("Respuesta enviada, espera al Host...");
+  try {
+    await solicitar('enviar_respuesta', {
+      gamePin: miPinActual,
+      preguntaId,
+      respuestaSeleccionada: indiceOpcion
+    });
+    if (preguntaId === preguntaIdActual) {
+      alert('Respuesta recibida por el servidor. Espera al profesor.');
+    }
+  } catch (error) {
+    if (preguntaId === preguntaIdActual) alert(error.message);
+  }
 }

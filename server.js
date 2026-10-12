@@ -1,127 +1,89 @@
 const express = require('express');
-const { createServer } = require('http');
+const { createServer: createHttpServer } = require('node:http');
 const { Server } = require('socket.io');
-const path = require('path');
+const path = require('node:path');
+const { CONFIG, CLIENT_CONFIG } = require('./src/config');
+const { createGameService } = require('./src/game-service');
+const { registerRequest } = require('./src/request-handler');
+const { validarPartida, validarUnion, validarPregunta, validarRespuesta } = require('./src/validators');
 
-const app = express();
-const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: { origin: "*" } // Ajusta según tus necesidades
-});
+function createGameServer({ now = Date.now, logger = console } = {}) {
+  const app = express();
+  const httpServer = createHttpServer(app);
+  const io = new Server(httpServer, { cors: { origin: '*' } });
+  const gameService = createGameService({ now });
+  const hostNamespace = io.of('/host');
+  const playerNamespace = io.of('/player');
 
-// ==========================================
-// 1. CONFIGURACIÓN DE EXPRESS (Rutas y Estáticos)
-// ==========================================
-
-// Le decimos a Express que busque archivos en la carpeta 'public'
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Ruta para la pantalla del Profesor (Host)
-app.get('/host-panel', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'host.html'));
-});
-
-// Ruta para la pantalla del Alumno (Player)
-app.get('/play', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'player.html'));
-});
-
-// ==========================================
-// 2. LÓGICA DE CONTROL (Base de datos en memoria)
-// ==========================================
-
-// Guardaremos el estado de los juegos activos en memoria (para producción usa Redis)
-// Estructura: { "PIN_1234": { hostId: "...", players: [...], preguntaActual: 0 } }
-const partidasActivas = new Map();
-
-// ==========================================
-// 3. NAMESPACE PARA LOS HOSTS (Profesores)
-// ==========================================
-const hostNamespace = io.of("/host");
-
-hostNamespace.on("connection", (socket) => {
-  console.log(`Host conectado: ${socket.id}`);
-
-  // El host crea una nueva partida y genera un PIN único
-  socket.on("crear_partida", (gamePin) => {
-    socket.join(gamePin); // El host se une a la Room de su propio juego
-    
-    partidasActivas.set(gamePin, {
-      hostSocketId: socket.id,
-      players: []
-    });
-    
-    console.log(`Partida creada con el PIN: ${gamePin}`);
-    socket.emit("partida_creada", { status: "success", pin: gamePin });
+  app.use(express.static(path.join(__dirname, 'public')));
+  app.get('/host-panel', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'host.html'));
+  });
+  app.get('/play', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'player.html'));
   });
 
-  // El host inicia el juego y manda la primera pregunta
-  socket.on("iniciar_juego", (gamePin) => {
-    // Le avisamos a todos los PLAYERS en esa Room que el juego comenzó
-    playerNamespace.to(gamePin).emit("juego_iniciado");
+  hostNamespace.on('connection', (socket) => {
+    socket.emit('configuracion', CLIENT_CONFIG);
+
+    registerRequest(socket, 'crear_partida', validarPartida, async (payload) => {
+      const data = gameService.crearPartida(socket.id, payload);
+      await socket.join(payload.gamePin);
+      return data;
+    }, logger);
+
+    registerRequest(socket, 'iniciar_juego', validarPartida, (payload) => {
+      const data = gameService.iniciarJuego(payload);
+      playerNamespace.to(payload.gamePin).emit('juego_iniciado', data);
+      return data;
+    }, logger);
+
+    registerRequest(socket, 'enviar_pregunta', validarPregunta, (payload) => {
+      const pregunta = gameService.enviarPregunta(payload);
+      playerNamespace.to(payload.gamePin).emit('recibir_pregunta', pregunta);
+      return pregunta;
+    }, logger);
   });
 
-  // El host envía una pregunta a los jugadores
-  socket.on("enviar_pregunta", ({ gamePin, pregunta }) => {
-    // Enviamos solo las opciones de respuesta a los jugadores (sin la respuesta correcta)
-    playerNamespace.to(gamePin).emit("recibir_pregunta", {
-      titulo: pregunta.titulo,
-      opciones: pregunta.opciones // Ej: ['A', 'B', 'C', 'D']
-    });
+  playerNamespace.on('connection', (socket) => {
+    socket.emit('configuracion', CLIENT_CONFIG);
+
+    registerRequest(socket, 'unirse_a_partida', validarUnion, async (payload) => {
+      const { pin, jugador } = gameService.unirseAPartida(socket.id, payload);
+      await socket.join(payload.gamePin);
+      hostNamespace.to(payload.gamePin).emit('nuevo_jugador', jugador);
+      return { pin };
+    }, logger);
+
+    registerRequest(socket, 'enviar_respuesta', validarRespuesta, (payload) => {
+      const data = gameService.enviarRespuesta(socket.id, payload);
+      hostNamespace.to(payload.gamePin).emit('respuesta_recibida', {
+        playerId: data.playerId,
+        preguntaId: data.preguntaId,
+        respuesta: data.respuestaSeleccionada
+      });
+      return data;
+    }, logger);
   });
-});
 
-// ==========================================
-// 4. NAMESPACE PARA LOS PLAYERS (Alumnos)
-// ==========================================
-const playerNamespace = io.of("/player");
-
-playerNamespace.on("connection", (socket) => {
-  console.log(`Jugador conectado: ${socket.id}`);
-
-  // El jugador intenta unirse usando el PIN y su nombre
-  socket.on("unirse_a_partida", ({ gamePin, nickname }) => {
-    // Verificar si la partida existe en el mapa global
-    if (!partidasActivas.has(gamePin)) {
-      return socket.emit("error_union", "La partida no existe o ha terminado.");
+  let cierre;
+  function close() {
+    if (!cierre) {
+      cierre = io.close().finally(() => gameService.cerrar());
     }
+    return cierre;
+  }
 
-    // Unimos al jugador a la Room del juego
-    socket.join(gamePin);
+  return { app, httpServer, io, gameService, close };
+}
 
-    // Guardamos al jugador en el estado de la partida
-    const partida = partidasActivas.get(gamePin);
-    partida.players.push({ id: socket.id, nickname, puntos: 0 });
-
-    // LE AVISAMOS AL HOST (en su namespace) que entró un nuevo jugador para que lo pinte en pantalla
-    hostNamespace.to(gamePin).emit("nuevo_jugador", { nickname, id: socket.id });
-
-    // Confirmamos al jugador que ya está dentro de la sala de espera
-    socket.emit("union_exitosa", { pin: gamePin });
+if (require.main === module) {
+  const server = createGameServer();
+  server.httpServer.listen(CONFIG.port, () => {
+    console.log(`Servidor Kahoot listo en puerto ${CONFIG.port}`);
+    console.log(`Profesor: http://localhost:${CONFIG.port}/host-panel`);
+    console.log(`Jugador: http://localhost:${CONFIG.port}/play`);
   });
+}
 
-  // El jugador envía su respuesta
-  socket.on("enviar_respuesta", ({ gamePin, respuestaSeleccionada }) => {
-    const partida = partidasActivas.get(gamePin);
-    if (!partida) return;
-
-    // Enviamos la respuesta directamente al HOST para que calcule los puntos
-    hostNamespace.to(gamePin).emit("respuesta_recibida", {
-      playerId: socket.id,
-      respuesta: respuestaSeleccionada
-    });
-  });
-});
-
-// ==========================================
-// 5. ENCENDIDO DEL SERVIDOR
-// ==========================================
-
-const PUERTO = 3000;
-
-httpServer.listen(3000, () => {
-  console.log("Servidor Kahoot Clone corriendo en puerto 3000");
-  console.log(`\n🚀 ¡Servidor Kahoot listo!`);
-  console.log(`💻 Profesor ingresa a: http://localhost:${PUERTO}/host-panel`);
-  console.log(`📱 Alumno ingresa a:   http://localhost:${PUERTO}/play\n`);
-});
+module.exports = { createGameServer };

@@ -1,63 +1,85 @@
-// Nos conectamos ESTRICTAMENTE al namespace '/host'
-const socket = io("/host"); 
+const socket = io('/host');
 
-let miPin = "";
-let conteoRespuestas = 0;
+let configuracion = null;
+let miPin = '';
 
-// Elementos del DOM
-const pInicio = document.getElementById("pantalla-inicio");
-const pLobby = document.getElementById("pantalla-lobby");
-const pJuego = document.getElementById("pantalla-juego");
+const pInicio = document.getElementById('pantalla-inicio');
+const pLobby = document.getElementById('pantalla-lobby');
+const pJuego = document.getElementById('pantalla-juego');
+const btnCrear = document.getElementById('btn-crear');
+const btnComenzar = document.getElementById('btn-comenzar');
+btnCrear.disabled = true;
 
-// Crear partida de forma aleatoria
-document.getElementById("btn-crear").addEventListener("click", () => {
-  miPin = Math.floor(1000 + Math.random() * 9000).toString(); // PIN de 4 dígitos
-  socket.emit("crear_partida", miPin);
+socket.on('configuracion', (data) => {
+  configuracion = data;
+  btnCrear.disabled = false;
 });
 
-// Confirmación de sala creada
-socket.on("partida_creada", (data) => {
-  pInicio.style.display = "none";
-  pLobby.style.display = "block";
-  document.getElementById("mostrar-pin").innerText = data.pin;
+async function solicitar(evento, payload) {
+  if (!configuracion || !socket.connected) {
+    throw new Error('Espera a que se establezca la conexión con el servidor.');
+  }
+  let response;
+  try {
+    response = await socket.timeout(configuracion.ackTimeoutMs).emitWithAck(evento, payload);
+  } catch {
+    throw new Error('No se recibió confirmación del servidor. Verifica el estado de la partida.');
+  }
+  if (!response.ok) throw new Error(response.error.message);
+  return response.data;
+}
+
+btnCrear.addEventListener('click', async () => {
+  btnCrear.disabled = true;
+  const minimo = 10 ** (configuracion.pinLength - 1);
+  const gamePin = Math.floor(minimo + Math.random() * minimo * 9).toString();
+  try {
+    const data = await solicitar('crear_partida', { gamePin });
+    miPin = data.pin;
+    pInicio.style.display = 'none';
+    pLobby.style.display = 'block';
+    document.getElementById('mostrar-pin').innerText = data.pin;
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    btnCrear.disabled = false;
+  }
 });
 
-// Escuchar cuando entra un alumno (desde el otro namespace)
-socket.on("nuevo_jugador", (jugador) => {
-  const lista = document.getElementById("lista-jugadores");
-  const li = document.createElement("li");
+socket.on('nuevo_jugador', (jugador) => {
+  const lista = document.getElementById('lista-jugadores');
+  const li = document.createElement('li');
   li.innerText = jugador.nickname;
   lista.appendChild(li);
-  
-  const contador = document.getElementById("contador");
-  contador.innerText = parseInt(contador.innerText) + 1;
+  const contador = document.getElementById('contador');
+  contador.innerText = Number(contador.innerText) + 1;
 });
 
-// Botón para iniciar la partida
-document.getElementById("btn-comenzar").addEventListener("click", () => {
-  socket.emit("iniciar_juego", miPin);
-  
-  // Simulamos lanzar la primera pregunta inmediatamente
-  pLobby.style.display = "none";
-  pJuego.style.display = "block";
-  
-  const preguntaFake = {
-    titulo: "¿Cuál es el protocolo nativo de Socket.IO?",
-    opciones: ["HTTP", "WebSockets", "FTP", "SSH"]
+btnComenzar.addEventListener('click', async () => {
+  btnComenzar.disabled = true;
+  const pregunta = {
+    titulo: '¿Cuál es el protocolo nativo de Socket.IO?',
+    opciones: ['HTTP', 'WebSockets', 'FTP', 'SSH']
   };
-  
-  document.getElementById("texto-pregunta").innerText = preguntaFake.titulo;
-  for(let i=0; i<4; i++) {
-    document.getElementById(`opc-${i}`).innerText = preguntaFake.opciones[i];
+  try {
+    await solicitar('iniciar_juego', { gamePin: miPin });
+    document.getElementById('respuestas-conteo').innerText = '0';
+    const data = await solicitar('enviar_pregunta', { gamePin: miPin, pregunta });
+    document.getElementById('texto-pregunta').innerText = data.titulo;
+    data.opciones.forEach((opcion, indice) => {
+      document.getElementById(`opc-${indice}`).innerText = opcion;
+    });
+    pLobby.style.display = 'none';
+    pJuego.style.display = 'block';
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    btnComenzar.disabled = false;
   }
-
-  // Enviamos la pregunta al Namespace de los Players
-  socket.emit("enviar_pregunta", { gamePin: miPin, pregunta: preguntaFake });
 });
 
-// Escuchar las respuestas de los alumnos
-socket.on("respuesta_recibida", (data) => {
-  conteoRespuestas++;
-  document.getElementById("respuestas-conteo").innerText = conteoRespuestas;
+socket.on('respuesta_recibida', (data) => {
+  const contador = document.getElementById('respuestas-conteo');
+  contador.innerText = Number(contador.innerText) + 1;
   console.log(`El alumno ${data.playerId} respondió la opción índice: ${data.respuesta}`);
 });
