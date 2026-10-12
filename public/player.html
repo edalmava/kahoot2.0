@@ -11,8 +11,9 @@
   <!-- Formulario de Login -->
   <div id="pantalla-login" class="card">
     <h1>¡A Jugar!</h1>
-    <input type="number" id="input-pin" placeholder="PIN del juego">
-    <input type="text" id="input-nick" placeholder="Tu Nickname / Nombre">
+    <input type="text" id="input-pin" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" aria-label="PIN del juego" placeholder="PIN del juego">
+    <input type="text" id="input-nick" aria-label="Tu nombre" aria-describedby="limites-nick" placeholder="Tu Nickname / Nombre">
+    <p id="limites-nick"></p>
     <button id="btn-unirse">Ingresar</button>
     <p id="error-msg" style="color: red; margin-top: 10px;"></p>
   </div>
@@ -33,6 +34,12 @@
       <button class="btn-opcion amarillo" onclick="responder(2)">■</button>
       <button class="btn-opcion verde" onclick="responder(3)">♥</button>
     </div>
+  </div>
+
+  <div id="panel-sesion" class="card" style="display: none; margin-top: 20px;">
+    <p id="estado-conexion" role="status" aria-live="polite"></p>
+    <button id="btn-consultar" style="display: none;">Consultar estado</button>
+    <button id="btn-nueva-sesion">Iniciar otra sesión</button>
   </div>
 
   <script src="js/player.js"></script>

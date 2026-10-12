@@ -51,6 +51,7 @@ button {
   margin-top: 10px;
 }
 button:hover { background-color: #331166; }
+button:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* Contenedor de respuestas geométricas */
 .grid-respuestas {
