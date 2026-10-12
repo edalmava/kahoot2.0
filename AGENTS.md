@@ -15,6 +15,12 @@ El directorio `docs/` contiene las especificaciones del proyecto, los planes par
 
 Antes de iniciar una implementación, consultar estos documentos y mantener los cambios alineados con las especificaciones, el plan y las tareas correspondientes.
 
+## Continuidad entre sesiones
+
+Las **fases 1–6 de `docs/tasks.md` (T01–T35) están completadas y verificadas**. No quedan tareas pendientes de este plan ni debe reiniciarse su implementación. Antes de abordar nuevos cambios, consultar `docs/specs.md`, `docs/plan.md`, `docs/tasks.md`, `docs/protocol.md` y `docs/verification.md`.
+
+La fase 6 incorpora `socket.io-client` como dependencia de desarrollo y lo usa en las pruebas de integración. Última verificación: 102 pruebas aprobadas con `pnpm test`, instalación con `pnpm install --frozen-lockfile`, sintaxis de los 15 archivos JavaScript y flujo completo en Chrome contra `pnpm start`, con cierre real de 20 segundos, reconexión, recarga y finalización sin errores de consola. La evidencia y trazabilidad están en `docs/verification.md`. El alcance sigue siendo memoria en un único proceso e identidad por sesión de jugador.
+
 ## Project Structure & Module Organization
 
 - `server.js` exports `createGameServer`, serves static files, and registers Socket.IO events; direct execution starts port 3000. `src/` contains configuration, validators, request handling, and the game service with isolated in-memory state. `test/*.test.js` contains automated tests.
@@ -40,7 +46,7 @@ Use two-space indentation, semicolons, and `const` unless reassignment requires 
 
 ## Testing Guidelines
 
-Use `node:test` and `node:assert/strict`; name tests `test/*.test.js`. Integration tests currently load the bundled Socket.IO browser client with native WebSocket in Node.js 24. Run `pnpm test`; no coverage threshold is configured. Before submitting changes, verify host/player joining, question delivery, answer counts, disabled buttons, and unknown-PIN errors. Check browser and server consoles for failures.
+Use `node:test` and `node:assert/strict`; name tests `test/*.test.js`. Integration tests use the `socket.io-client` development dependency, ephemeral ports, and cleanup hooks. Browser script tests use the controlled DOM/socket fixture in `test-support/browser-client.js`; deadlines use `test-support/manual-clock.js`. Run `pnpm test` with Node.js 24; no coverage threshold is configured. Before submitting changes, verify host/player joining, question delivery, answer counts, disabled buttons, and unknown-PIN errors. Check browser and server consoles for failures. See `docs/verification.md` for the final acceptance evidence.
 
 ## Commit & Pull Request Guidelines
 

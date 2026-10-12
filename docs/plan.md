@@ -6,7 +6,11 @@ Implementar [specs.md](./specs.md) haciendo que el servidor controle la pertenen
 
 Mantener Express, CommonJS, los namespaces `/host` y `/player`, y las partidas en memoria en un solo proceso. La persistencia, el despliegue con varias instancias y la identificación de personas mediante cuentas quedan para una evolución posterior. La garantía será por sesión de jugador: crear otra sesión representa otro participante.
 
-## Situación actual
+## Estado de ejecución
+
+Las seis fases están completadas y verificadas. El seguimiento final está en [tasks.md](./tasks.md), el contrato implementado en [protocol.md](./protocol.md) y la evidencia de aceptación en [verification.md](./verification.md). Las decisiones iniciales de configuración se adoptaron sin cambios.
+
+## Situación inicial antes de la implementación
 
 - `server.js` comprueba que el PIN exista, pero reenvía respuestas sin validar pertenencia, pregunta, plazo, opción ni duplicados.
 - `public/js/player.js` bloquea botones y anuncia el envío sin confirmación del servidor.
